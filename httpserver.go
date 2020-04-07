@@ -1154,6 +1154,28 @@ func (server *Server) initHTTPServer() {
 	})
 	m.Handle("/assets/{(.*)}", http.StripPrefix("/assets", http.FileServer(Assets)))
 
+	m.HandleFunc("/perf/{pkgname}/{perftype}", func(w http.ResponseWriter, r *http.Request) {
+		pkgname := mux.Vars(r)["pkgname"]
+		// perftype := mux.Vars(r)["perftype"]
+		// dat, err := ioutil.ReadFile("/proc/stat")
+		resultData := make(map[string]interface{})
+		pid, err := pidOf(pkgname)
+		cpuinfo, err := readCPUInfo(pid)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		resultData["cpu"] = cpuinfo
+		meminfo, err := parseMemoryInfo(pkgname)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		resultData["mem"] = meminfo
+		renderJSON(w, resultData)
+		// io.WriteString(w, string(b))
+	})
+
 	var handler = cors.New(cors.Options{
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
 	}).Handler(m)
